@@ -1,0 +1,7 @@
+temp/
+output-*/
+*.pdf
+.env
+__pycache__/
+.claude/
+.git/
