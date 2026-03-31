@@ -5,11 +5,22 @@ import io
 from dataclasses import dataclass
 from pathlib import Path
 
-import cv2
 import fitz
-import numpy as np
 from PIL import Image, ImageOps
-from rembg import remove as rembg_remove
+
+try:
+    import cv2
+    import numpy as np
+    CV_AVAILABLE = True
+except Exception:
+    cv2 = None
+    np = None
+    CV_AVAILABLE = False
+
+try:
+    from rembg import remove as rembg_remove
+except Exception:
+    rembg_remove = None
 
 # ---------------------------------------------------------------------------
 # Defaults
@@ -71,6 +82,8 @@ def parse_hex_color(value: str) -> tuple[int, int, int]:
 
 def remove_background(img: Image.Image) -> Image.Image:
     """Remove the background from a PIL image using rembg. Returns RGBA."""
+    if rembg_remove is None:
+        return img.convert("RGBA")
     return rembg_remove(img.convert("RGBA"))
 
 
@@ -275,12 +288,15 @@ class ExtractedImage:
 
 def _has_content(image: Image.Image, background_color: tuple[int, int, int], min_content_ratio: float = 0.03) -> bool:
     """Devuelve True si la imagen tiene suficiente contenido no-fondo."""
-    import numpy as np
-    arr = np.array(image.convert("RGB"))
-    bg = np.array(background_color, dtype=np.int32)
-    diff = np.abs(arr.astype(np.int32) - bg).sum(axis=2)
-    content_pixels = (diff > 30).sum()
-    total_pixels = arr.shape[0] * arr.shape[1]
+    rgb = image.convert("RGB")
+    bg_r, bg_g, bg_b = background_color
+    total_pixels = rgb.width * rgb.height
+    if total_pixels == 0:
+        return False
+    content_pixels = 0
+    for r, g, b in rgb.getdata():
+        if abs(r - bg_r) + abs(g - bg_g) + abs(b - bg_b) > 30:
+            content_pixels += 1
     return (content_pixels / total_pixels) >= min_content_ratio
 
 
@@ -341,7 +357,7 @@ def extract_images_to_list(
                 continue
 
             # ── Path B: CV fallback ─────────────────────────────────────────
-            if not use_cv_fallback:
+            if not use_cv_fallback or not CV_AVAILABLE:
                 pages_without_candidates.append(page_number)
                 continue
 
@@ -440,7 +456,7 @@ def extract_candidate_images(
                 continue
 
             # ── Path B: CV fallback ────────────────────────────────────────
-            if not use_cv_fallback:
+            if not use_cv_fallback or not CV_AVAILABLE:
                 pages_without_candidates.append(page_number)
                 continue
 

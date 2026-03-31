@@ -1,10 +1,5 @@
 flask
 pymupdf
-opencv-python
-numpy
 pillow
-rembg
-onnxruntime
 google-genai
-huggingface_hub
 python-dotenv
