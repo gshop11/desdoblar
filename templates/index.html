@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Extractor de Imágenes de Catálogo</title>
+  <link rel="stylesheet" href="/static/css/style.css" />
+</head>
+<body>
+
+<header>
+  <h1>📦 Extractor de Imágenes de Catálogo</h1>
+  <p class="subtitle">Sube tu catálogo PDF y extrae las imágenes de productos en PNG o JPG</p>
+</header>
+
+<main>
+
+  <!-- ── SECCIÓN 1: Upload ──────────────────────────────────────────── -->
+  <section class="card" id="upload-section">
+    <h2>1. Subir catálogo PDF</h2>
+    <div class="drop-zone" id="drop-zone">
+      <input type="file" id="pdf-input" accept=".pdf" hidden />
+      <div class="drop-content">
+        <span class="drop-icon">📄</span>
+        <p>Arrastra tu PDF aquí o <button class="link-btn" onclick="document.getElementById('pdf-input').click()">selecciona un archivo</button></p>
+        <p id="file-name" class="file-name"></p>
+      </div>
+    </div>
+    <div id="upload-status" class="status-msg"></div>
+  </section>
+
+  <!-- ── SECCIÓN 2: Configuración ──────────────────────────────────── -->
+  <section class="card" id="config-section">
+    <h2>2. Configuración</h2>
+
+    <details open>
+      <summary>Opciones básicas</summary>
+      <div class="params-grid">
+        <label>
+          Tamaño canvas (px)
+          <input type="range" id="canvas-size" min="400" max="1600" step="100" value="800" oninput="document.getElementById('canvas-val').textContent=this.value" />
+          <span id="canvas-val">800</span>px
+        </label>
+        <label>
+          Color de fondo
+          <input type="color" id="bg-color" value="#efefef" />
+        </label>
+        <label>
+          DPI de renderizado
+          <input type="range" id="render-dpi" min="72" max="300" step="10" value="150" oninput="document.getElementById('dpi-val').textContent=this.value" />
+          <span id="dpi-val">150</span>
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" id="remove-bg" checked />
+          Remover fondo con IA (rembg)
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" id="cv-fallback" checked />
+          Usar detección OpenCV como fallback
+        </label>
+      </div>
+    </details>
+
+    <details>
+      <summary>Opciones avanzadas</summary>
+      <div class="params-grid">
+        <label>
+          Página inicio
+          <input type="number" id="start-page" value="1" min="1" />
+        </label>
+        <label>
+          Página fin (vacío = todo)
+          <input type="number" id="end-page" placeholder="Todas" min="1" />
+        </label>
+        <label>
+          Tamaño mínimo imagen (px)
+          <input type="number" id="min-size" value="500" min="50" />
+        </label>
+        <label>
+          Máx imágenes por página (vacío = sin límite)
+          <input type="number" id="max-per-page" placeholder="Sin límite" min="1" />
+        </label>
+        <label>
+          Merge kernel (OpenCV)
+          <input type="range" id="merge-kernel" min="4" max="40" step="1" value="12" oninput="document.getElementById('kernel-val').textContent=this.value" />
+          <span id="kernel-val">12</span>px
+        </label>
+        <label>
+          Área mínima región (% página)
+          <input type="range" id="min-area" min="0.01" max="0.15" step="0.01" value="0.02" oninput="document.getElementById('area-val').textContent=(this.value*100).toFixed(0)+'%'" />
+          <span id="area-val">2%</span>
+        </label>
+        <label>
+          Umbral blanco (detección fondo)
+          <input type="range" id="white-threshold" min="200" max="255" step="1" value="250" oninput="document.getElementById('wt-val').textContent=this.value" />
+          <span id="wt-val">250</span>
+        </label>
+        <label>
+          Margen bordes (% altura página)
+          <input type="range" id="edge-margin" min="0" max="0.15" step="0.01" value="0.05" oninput="document.getElementById('em-val').textContent=(this.value*100).toFixed(0)+'%'" />
+          <span id="em-val">5%</span>
+        </label>
+      </div>
+    </details>
+
+    <button class="btn btn-primary" id="process-btn" disabled>
+      ⚙️ Procesar catálogo
+    </button>
+    <div id="process-status" class="status-msg"></div>
+  </section>
+
+  <!-- ── SECCIÓN 3: Vista previa y descarga ────────────────────────── -->
+  <section class="card" id="results-section" style="display:none">
+    <div class="results-header">
+      <h2>3. Imágenes extraídas</h2>
+      <div class="results-summary" id="results-summary"></div>
+    </div>
+
+    <div class="toolbar">
+      <div class="select-actions">
+        <button class="btn btn-sm" onclick="selectAll(true)">Seleccionar todas</button>
+        <button class="btn btn-sm" onclick="selectAll(false)">Deseleccionar todas</button>
+      </div>
+      <div class="download-actions">
+        <select id="format-select" class="format-select">
+          <option value="jpg">JPG</option>
+          <option value="png">PNG</option>
+        </select>
+        <button class="btn btn-primary" id="download-btn">⬇️ Descargar seleccionadas</button>
+      </div>
+    </div>
+
+    <div class="gallery" id="gallery"></div>
+  </section>
+
+</main>
+
+<!-- ── Modal: edición con Gemini ─────────────────────────────────────── -->
+<div class="modal-overlay" id="edit-modal" style="display:none">
+  <div class="modal">
+    <button class="modal-close" onclick="closeEditModal()">✕</button>
+    <h3>Mejorar imagen</h3>
+    <img id="modal-preview-img" class="modal-img" src="" alt="Vista previa" />
+    <div class="modal-actions">
+      <button class="btn btn-primary" id="enhance-btn">✨ Mejorar calidad</button>
+    </div>
+    <div id="modal-status" class="status-msg"></div>
+  </div>
+</div>
+
+<script src="/static/js/app.js"></script>
+</body>
+</html>

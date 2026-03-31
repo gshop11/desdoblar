@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Env and local settings
+.env
+.venv/
+venv/
+
+# Runtime and generated outputs
+temp/
+output-*/
+*.zip
+
+# Local tooling
+.vercel/
+.claude/
+
+# Large local catalog files
+*.pdf
