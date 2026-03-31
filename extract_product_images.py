@@ -5,8 +5,12 @@ import io
 from dataclasses import dataclass
 from pathlib import Path
 
-import fitz
 from PIL import Image, ImageOps
+
+try:
+    import fitz
+except Exception:
+    fitz = None
 
 try:
     import cv2
@@ -318,6 +322,8 @@ def extract_images_to_list(
     use_cv_fallback: bool = True,
 ) -> tuple[list[ExtractedImage], ExtractionSummary]:
     """Extrae imágenes de un PDF y las retorna como objetos PIL en memoria."""
+    if fitz is None:
+        raise RuntimeError("PyMuPDF no estÃ¡ disponible en este entorno de ejecuciÃ³n.")
     extracted: list[ExtractedImage] = []
     pages_without_candidates: list[int] = []
     cv_fallback_pages: list[int] = []
@@ -423,6 +429,8 @@ def extract_candidate_images(
     remove_bg: bool,
     use_cv_fallback: bool,
 ) -> ExtractionSummary:
+    if fitz is None:
+        raise RuntimeError("PyMuPDF no estÃ¡ disponible en este entorno de ejecuciÃ³n.")
     output_dir.mkdir(parents=True, exist_ok=True)
     images_saved = 0
     pages_without_candidates: list[int] = []
