@@ -28,7 +28,10 @@ import gemini_client
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
 
-TEMP_DIR = Path("temp")
+if os.getenv("VERCEL"):
+    TEMP_DIR = Path("/tmp/desdoblar-temp")
+else:
+    TEMP_DIR = Path("temp")
 TEMP_DIR.mkdir(exist_ok=True)
 
 # Almacenamiento en memoria de imágenes por sesión
